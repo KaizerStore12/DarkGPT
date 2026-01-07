@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Panel</title>
+
+<style>
+body{
+ margin:0;font-family:sans-serif;
+ background:#0b0b0b;color:#fff
+}
+h2,h3{margin-top:20px}
+.container{padding:16px}
+input,select,textarea,button{
+ width:100%;padding:14px;
+ margin-top:10px;font-size:15px;
+ border:none;border-radius:14px
+}
+input,textarea,select{
+ background:#1e1e1e;color:#fff
+}
+button{
+ background:#00c853;color:#000;
+ font-weight:bold
+}
+.card{
+ background:#121212;padding:16px;
+ border-radius:16px;margin-top:16px
+}
+.user{
+ padding:10px;border-bottom:1px solid #222;
+ font-size:14px
+}
+.small{font-size:13px;color:#aaa}
+.hidden{display:none}
+.logout{
+ background:#ff5252;color:#000;margin-top:20px
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<!-- LOGIN -->
+<div id="loginBox">
+ <h2>Admin Login</h2>
+ <input id="adminUser" placeholder="Username admin">
+ <input id="adminPass" type="password" placeholder="Password">
+ <button onclick="adminLogin()">Login</button>
+</div>
+
+<!-- PANEL -->
+<div id="panel" class="hidden">
+
+<h2>Admin Panel</h2>
+
+<div class="card">
+ <h3>🧠 System Prompt</h3>
+ <textarea id="systemPrompt" rows="4"
+  placeholder="Prompt sistem AI..."></textarea>
+ <button onclick="savePrompt()">Simpan System Prompt</button>
+</div>
+
+<div class="card">
+ <h3>👤 Buat Akun</h3>
+ <input id="newUser" placeholder="Username">
+ <input id="newPass" placeholder="Password">
+
+ <select id="newType">
+  <option value="free">FREE (15K / hari)</option>
+  <option value="premium">PREMIUM (Unlimited)</option>
+ </select>
+
+ <input id="days" type="number" placeholder="Aktif (hari)">
+
+ <button onclick="createUser()">Buat Akun</button>
+</div>
+
+<div class="card">
+ <h3>📊 Daftar User</h3>
+ <div id="userList"></div>
+</div>
+
+<button class="logout" onclick="logout()">Logout</button>
+
+</div>
+</div>
+
+<script>
+/* INIT ADMIN DEFAULT */
+const ADMIN_USER="admin";
+const ADMIN_PASS="admin123";
+
+/* STORAGE */
+let users=JSON.parse(localStorage.getItem("users")||"{}");
+
+/* LOGIN */
+function adminLogin(){
+ const u=adminUser.value;
+ const p=adminPass.value;
+ if(u===ADMIN_USER && p===ADMIN_PASS){
+  localStorage.setItem("admin","1");
+  showPanel();
+ }else alert("Login admin salah");
+}
+
+function showPanel(){
+ loginBox.classList.add("hidden");
+ panel.classList.remove("hidden");
+ loadPrompt();
+ drawUsers();
+}
+
+if(localStorage.getItem("admin"))showPanel();
+
+/* SYSTEM PROMPT */
+function savePrompt(){
+ localStorage.setItem("system_prompt",systemPrompt.value);
+ alert("System prompt disimpan");
+}
+function loadPrompt(){
+ systemPrompt.value=localStorage.getItem("system_prompt")||"";
+}
+
+/* CREATE USER */
+function createUser(){
+ const u=newUser.value.trim();
+ const p=newPass.value;
+ const t=newType.value;
+ const d=parseInt(days.value||0);
+
+ if(!u||!p||!d)return alert("Lengkapi data");
+
+ users[u]={
+  pass:p,
+  type:t,
+  used:0,
+  max:t==="free"?15000:Infinity,
+  exp:Date.now()+d*86400000,
+  lastReset:0
+ };
+
+ saveUsers();
+ alert("User dibuat");
+ drawUsers();
+}
+
+/* DRAW USERS */
+function drawUsers(){
+ userList.innerHTML="";
+ Object.keys(users).forEach(u=>{
+  const us=users[u];
+  const div=document.createElement("div");
+  div.className="user";
+  div.innerHTML=`
+   <b>${u}</b> (${us.type})<br>
+   <span class="small">
+    Used: ${us.used||0} |
+    Exp: ${new Date(us.exp).toLocaleDateString()}
+   </span><br>
+   <button onclick="resetToken('${u}')">Reset Token</button>
+  `;
+  userList.appendChild(div);
+ });
+}
+
+/* RESET TOKEN */
+function resetToken(u){
+ users[u].used=0;
+ users[u].lastReset=Date.now();
+ saveUsers();
+ drawUsers();
+}
+
+/* SAVE */
+function saveUsers(){
+ localStorage.setItem("users",JSON.stringify(users));
+}
+
+/* LOGOUT */
+function logout(){
+ localStorage.removeItem("admin");
+ location.reload();
+}
+</script>
+
+</body>
+</html>
