@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login</title>
+<style>
+body{
+ margin:0;background:linear-gradient(180deg,#0f2027,#203a43,#2c5364);
+ font-family:sans-serif;color:#fff;height:100vh;
+ display:flex;align-items:center;justify-content:center
+}
+.box{
+ width:90%;max-width:360px;
+ background:#111;padding:25px;border-radius:18px;
+ box-shadow:0 0 20px #000
+}
+h2{text-align:center}
+input,button{
+ width:100%;padding:14px;font-size:16px;
+ margin-top:14px;border:none;border-radius:12px
+}
+input{background:#1e1e1e;color:#fff}
+button{background:#00c853;color:#000;font-weight:bold}
+small{color:#aaa;display:block;text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+
+<div class="box">
+<h2>AI Chat Login</h2>
+<input id="u" placeholder="Username">
+<input id="p" type="password" placeholder="Password">
+<button onclick="login()">Masuk</button>
+<small>DarkGPT - AI</small>
+</div>
+
+<script>
+function login(){
+ const users=JSON.parse(localStorage.getItem("users")||"{}");
+ const user=users[u.value];
+ if(!user||user.pass!=p.value)return alert("Login gagal");
+
+ if(Date.now()>user.exp){
+   return alert("Akun sudah expired");
+ }
+
+ localStorage.setItem("login",u.value);
+ location.href="chat.html";
+}
+</script>
+</body>
+</html>

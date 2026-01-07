@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Chat</title>
+
+<style>
+body{margin:0;font-family:sans-serif;background:#0b0b0b;color:#fff}
+header{
+ display:flex;justify-content:space-between;
+ align-items:center;padding:12px;
+ background:#121212;font-size:14px
+}
+.menu{font-size:22px;cursor:pointer}
+#chat{padding:12px;height:70vh;overflow:auto}
+.bubble{
+ max-width:80%;padding:12px;margin:6px 0;
+ border-radius:16px;font-size:15px
+}
+.user{background:#00c853;color:#000;margin-left:auto}
+.ai{background:#1e1e1e}
+footer{
+ position:fixed;bottom:0;width:100%;
+ display:flex;padding:10px;background:#111
+}
+input{
+ flex:1;padding:14px;font-size:16px;border:none;
+ border-radius:14px;background:#1e1e1e;color:#fff
+}
+button{
+ margin-left:8px;padding:14px;
+ background:#00c853;border:none;
+ border-radius:14px;font-weight:bold
+}
+button:disabled{background:#555;color:#999}
+
+#panel{
+ position:fixed;top:0;left:-100%;
+ width:75%;height:100%;
+ background:#0f0f0f;padding:16px;
+ transition:.3s;z-index:9
+}
+.panel-item{
+ padding:12px;border-bottom:1px solid #222
+}
+.panel-item.chat{cursor:pointer}
+.close{color:#00c853;font-size:20px}
+.newchat{background:#00c853;color:#000;text-align:center;border-radius:12px;margin:10px 0}
+</style>
+</head>
+<body>
+
+<header>
+<span class="menu" onclick="openMenu()">☰</span>
+<span id="info"></span>
+</header>
+
+<div id="chat"></div>
+
+<footer>
+<input id="i" placeholder="Ketik pesan...">
+<button id="sendBtn" onclick="send()">➤</button>
+</footer>
+
+<!-- PANEL -->
+<div id="panel">
+<span class="close" onclick="closeMenu()">✕</span>
+<h3>Menu</h3>
+<div class="panel-item">👤 <b id="pUser"></b></div>
+<div class="panel-item">⭐ <b id="pType"></b></div>
+<div class="panel-item">🔢 Dipakai: <b id="used"></b></div>
+<div class="panel-item">🟢 Sisa: <b id="left"></b></div>
+
+<div class="panel-item newchat" onclick="newChat()">➕ Chat Baru</div>
+
+<div id="chatList"></div>
+
+<div class="panel-item" onclick="logout()">🚪 Logout</div>
+</div>
+
+<script>
+/* AUTH */
+const username=localStorage.getItem("login");
+if(!username)location.href="login.html";
+
+const users=JSON.parse(localStorage.getItem("users"));
+const user=users[username];
+
+/* RESET TOKEN HARIAN */
+function resetDaily(u){
+ if(u.type!="free")return;
+ const n=new Date(),l=new Date(u.lastReset||0);
+ if(n.toDateString()!=l.toDateString()){
+  u.used=0;
+  u.lastReset=Date.now();
+ }
+}
+resetDaily(user);
+users[username]=user;
+localStorage.setItem("users",JSON.stringify(users));
+
+/* TOKEN */
+const MAX=user.type=="free"?15000:Infinity;
+let usedToken=user.used||0;
+let leftToken=MAX-usedToken;
+
+/* CHAT STORAGE */
+const CHAT_KEY="chats_"+username;
+let chats=JSON.parse(localStorage.getItem(CHAT_KEY)||"{}");
+let activeChat=localStorage.getItem("activeChat_"+username);
+
+/* INIT CHAT */
+if(!activeChat||!chats[activeChat]){
+ activeChat=createChat();
+}
+saveChats();
+
+/* UI INIT */
+info.innerText=username+" • "+user.type;
+pUser.innerText=username;
+pType.innerText=user.type;
+
+function updateTokenUI(){
+ if(user.type=="premium"){
+  used.innerText="∞";
+  left.innerText="∞";
+ }else{
+  used.innerText=usedToken;
+  left.innerText=leftToken;
+  if(leftToken<=0){
+   sendBtn.disabled=true;
+   i.disabled=true;
+  }
+ }
+}
+updateTokenUI();
+
+/* MENU */
+function openMenu(){panel.style.left="0";drawChatList();}
+function closeMenu(){panel.style.left="-100%";}
+
+/* CHAT LIST */
+function drawChatList(){
+ chatList.innerHTML="";
+ Object.keys(chats).forEach(id=>{
+  const d=document.createElement("div");
+  d.className="panel-item chat";
+  d.innerText="💬 "+id;
+  d.onclick=()=>switchChat(id);
+  chatList.appendChild(d);
+ });
+}
+
+/* CREATE CHAT */
+function createChat(){
+ const id="Chat-"+new Date().toLocaleString();
+ chats[id]=[];
+ activeChat=id;
+ return id;
+}
+function newChat(){
+ createChat();
+ saveChats();
+ closeMenu();
+ draw();
+}
+
+/* SWITCH */
+function switchChat(id){
+ activeChat=id;
+ localStorage.setItem("activeChat_"+username,id);
+ closeMenu();
+ draw();
+}
+
+/* SAVE */
+function saveChats(){
+ localStorage.setItem(CHAT_KEY,JSON.stringify(chats));
+ localStorage.setItem("activeChat_"+username,activeChat);
+}
+
+/* DRAW */
+function draw(){
+ chat.innerHTML="";
+ chats[activeChat].forEach(m=>{
+  const d=document.createElement("div");
+  d.className="bubble "+(m.role=="user"?"user":"ai");
+  d.innerText=m.content;
+  chat.appendChild(d);
+ });
+ chat.scrollTop=99999;
+}
+draw();
+
+/* SEND */
+async function send(){
+ const text=i.value;
+ if(!text||leftToken<=0)return;
+ i.value="";
+
+ if(user.type=="free"){
+  usedToken+=text.length;
+  leftToken=MAX-usedToken;
+  user.used=usedToken;
+  users[username]=user;
+  localStorage.setItem("users",JSON.stringify(users));
+  updateTokenUI();
+ }
+
+ chats[activeChat].push({role:"user",content:text});
+ draw();
+ saveChats();
+
+ const res=await fetch("https://api.deepseek.com/chat/completions",{
+  method:"POST",
+  headers:{
+   "Content-Type":"application/json",
+   "Authorization":"Bearer "+localStorage.getItem("deepseek_key")
+  },
+  body:JSON.stringify({
+   model:"deepseek-chat",
+   messages:[
+    {role:"system",content:localStorage.getItem("system_prompt")},
+    ...chats[activeChat].slice(-10)
+   ]
+  })
+ });
+
+ const data=await res.json();
+ const reply=data.choices?.[0]?.message?.content||"Error";
+
+ chats[activeChat].push({role:"assistant",content:reply});
+ saveChats();
+ draw();
+}
+
+/* LOGOUT */
+function logout(){
+ localStorage.removeItem("login");
+ location.href="login.html";
+}
+</script>
+
+</body>
+</html>
