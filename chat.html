@@ -212,10 +212,9 @@ async function send(){
  draw();
  saveChats();
 
- const res=await fetch("https://api.deepseek.com/chat/completions",{
+ const res=await fetch("/api/chat",{
   method:"POST",
   headers:{
-   "Content-Type":"application/json",
    "Authorization":"Bearer "+localStorage.getItem("deepseek_key")
   },
   body:JSON.stringify({
